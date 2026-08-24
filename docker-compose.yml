@@ -1,0 +1,24 @@
+# NapCat —— QQ 协议端。启动后看日志里的二维码扫码登录。
+#   docker compose up -d && docker compose logs -f napcat
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: unless-stopped
+    environment:
+      # 填你的 QQ 号（用于自动重登），首次可留空
+      - ACCOUNT=
+      - NAPCAT_UID=0
+      - NAPCAT_GID=0
+    ports:
+      - "3000:3000"   # WebUI  http://127.0.0.1:3000
+      - "3001:3001"   # 正向 WebSocket（本项目连这个）
+      - "3002:3002"   # HTTP 服务（可选）
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./napcat/qq:/app/.config/QQ
+      - ./napcat/cache:/app/napcat/cache
+    networks:
+      - napcat
+networks:
+  napcat:

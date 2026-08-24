@@ -1,0 +1,33 @@
+# 演示配置：不连 QQ，用假数据跑通「抓链接 → 摘要 → 出日报」整条流程
+#   .venv/bin/python scripts/seed_demo.py
+#   .venv/bin/qq-agent -c config.demo.toml report --dry-run   # 不花钱，只看送给模型的内容
+#   .venv/bin/qq-agent -c config.demo.toml report             # 真调 API 出日报
+
+[onebot]
+ws_url = "ws://127.0.0.1:3001"
+
+[group]
+group_ids = [999000999]
+include_admins = true
+
+[fetch]
+max_depth = 1
+max_chars_per_page = 8000
+concurrency = 4
+
+[summary]
+provider = "deepseek"        # 也可以改成 "codex"
+audience = "一位家长/学生，只想快速知道今天必须做什么、什么时候截止"
+
+[summary.deepseek]
+model = "deepseek-v4-pro"
+reasoning_effort = "high"
+
+[report]
+out_dir = "reports/demo"
+daily_at = "23:59"
+window_hours = 24
+formats = ["markdown", "html"]
+
+[storage]
+db_path = "data/demo.db"

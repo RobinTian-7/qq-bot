@@ -1,0 +1,80 @@
+# 复制为 config.toml 后按需修改
+# cp config.example.toml config.toml
+
+[onebot]
+# NapCat 的「正向 WebSocket」地址（docker-compose 默认映射到 3001）
+ws_url = "ws://127.0.0.1:3001"
+# NapCat 里设置的 token，留空表示不鉴权（仅限本机）
+access_token = ""
+# 断线后自动重连的间隔（秒）
+reconnect_delay = 5
+
+[group]
+# 要监听的群号，可以填多个
+group_ids = [123456789]
+# 老师的 QQ 号白名单。留空 = 不按 QQ 号过滤
+teacher_qqs = []
+# 是否把群主 / 管理员自动当作「老师」（启动时拉一次群成员列表）
+include_admins = true
+# 昵称 / 群名片里含这些词的人也算老师（补充手段，可留空）
+teacher_name_keywords = ["老师", "班主任", "教务"]
+# 如果上面三个条件全部为空/关闭，则收录群里所有人的消息
+
+[fetch]
+# 链接跟进深度：1 = 只读老师发的那个页面；2 = 再跟进该页面里的同域链接
+max_depth = 1
+# depth>=2 时，每个入口页最多跟进多少个子链接
+max_children_per_page = 5
+# 单个页面正文最多保留多少字符（超出会截断并在日报里标注）
+max_chars_per_page = 20000
+# 一天送进模型的正文总字符上限（超出会丢弃最长的页面并明确告知）
+max_total_chars = 400000
+# 单个请求超时（秒）
+timeout = 25
+# 并发抓取数
+concurrency = 4
+# 是否遵守 robots.txt
+respect_robots = true
+user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+# 永不抓取的域名（网盘、登录页等抓了也没意义）
+blocked_domains = ["pan.baidu.com", "wx.qq.com", "login.live.com"]
+
+[summary]
+# 用哪个后端出摘要：
+#   deepseek —— 调 DeepSeek API，需要 DEEPSEEK_API_KEY
+#   codex    —— 调本机的 codex CLI，用你 Codex 自己的登录态，不额外花 API 钱
+provider = "deepseek"
+# 日报写给谁看，会拼进提示词
+audience = "一位家长/学生，只想快速知道今天必须做什么、什么时候截止"
+
+[summary.deepseek]
+# deepseek-v4-pro 更准，deepseek-v4-flash 便宜约 3 倍
+model = "deepseek-v4-pro"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+max_tokens = 16000
+# 上下文有 1M，这个是自己设的闸：估算超过就停下来，防止某天链接特别多把账单打上去
+max_input_tokens = 400000
+# 思考深度 low | medium | high。关掉 thinking 会快很多也便宜很多，但日期推算容易出错
+reasoning_effort = "high"
+thinking = true
+timeout = 600
+
+[summary.codex]
+command = "codex"
+# 留空 = 用 codex 自己配的默认模型；也可以填 "gpt-5.1-codex" 之类
+model = ""
+sandbox = "read-only"
+timeout = 900
+
+[report]
+# 日报输出目录
+out_dir = "reports"
+# 每天几点生成日报（24 小时制，本地时区）
+daily_at = "21:30"
+# 统计区间：以 daily_at 为界，往前推多少小时算「今天」
+window_hours = 24
+formats = ["markdown", "html"]
+
+[storage]
+db_path = "data/qq_agent.db"
