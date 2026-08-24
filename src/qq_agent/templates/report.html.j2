@@ -48,6 +48,7 @@ h2.sec{font-size:14px; color:var(--muted); font-weight:600; letter-spacing:.06em
 .meta{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px}
 .chip{font-size:12.5px; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--chip-fg)}
 .chip.due{background:var(--hi-bg); color:var(--hi); font-weight:600}
+.chip.grp{background:var(--accent); color:var(--card); font-weight:600}
 .chip.imp-高{background:var(--hi-bg); color:var(--hi)}
 .chip.imp-中{background:var(--mid-bg); color:var(--mid)}
 .chip.imp-低{background:var(--lo-bg); color:var(--muted)}
@@ -101,6 +102,7 @@ footer{margin-top:34px; padding-top:16px; border-top:1px solid var(--line);
   <article class="item {{ 'hi' if it.importance == '高' else ('mid' if it.importance == '中' else '') }}">
     <h3><span class="num">{{ loop.index }}.</span><span>{{ badge.get(it.importance, '') }} {{ it.title }}</span></h3>
     <div class="meta">
+      {% if show_group and it.group %}<span class="chip grp">{{ it.group }}</span>{% endif %}
       <span class="chip">{{ it.category }}</span>
       <span class="chip imp-{{ it.importance }}">重要度 {{ it.importance }}</span>
       {% if it.deadline %}<span class="chip due">截止 {{ it.deadline }}</span>{% endif %}

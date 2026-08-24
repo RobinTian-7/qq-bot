@@ -28,6 +28,7 @@ async def generate(
     day: date | None = None,
     use_cache: bool = True,
     dry_run: bool = False,
+    slug: str = "",
 ) -> tuple[Digest | None, dict, list[Path]]:
     day = day or date.today()
     day_str = day.isoformat()
@@ -62,7 +63,7 @@ async def generate(
     summ = make_summarizer(cfg)
     if dry_run:
         content, meta = summ.build_prompt(day_str, msgs, pages)
-        out = cfg.resolve(cfg.report.out_dir) / f"{day_str}.prompt.txt"
+        out = cfg.resolve(cfg.report.out_dir) / f"{day_str}{slug}.prompt.txt"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(content, "utf-8")
         log.info("dry-run：没有调用模型，输入内容已写到 %s（%d 字）", out, len(content))
@@ -71,6 +72,7 @@ async def generate(
     digest, meta = summ.summarize(day_str, msgs, pages)
     store.save_digest(day_str, digest.model_dump(), meta.get("usage", {}))
     written = write_reports(
-        cfg.resolve(cfg.report.out_dir), day_str, digest, meta, cfg.report.formats
+        cfg.resolve(cfg.report.out_dir), day_str, digest, meta, cfg.report.formats,
+        slug=slug,
     )
     return digest, meta, written

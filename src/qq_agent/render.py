@@ -19,6 +19,11 @@ def _sorted_items(items: list[DigestItem]) -> list[DigestItem]:
     return sorted(items, key=lambda i: (rank.get(i.importance, 3), i.deadline or "9999-99-99"))
 
 
+def _show_group(items: list[DigestItem], meta: dict) -> bool:
+    """只监控一个群时不必到处标群名，是噪音。"""
+    return bool(meta.get("multi_group")) or len({i.group for i in items if i.group}) > 1
+
+
 def _day_label(day: str) -> str:
     d = datetime.strptime(day, "%Y-%m-%d")
     return f"{day}（周{WEEKDAY[d.weekday()]}）"
@@ -33,6 +38,7 @@ def to_markdown(day: str, digest: Digest, meta: dict) -> str:
         L.append("")
 
     items = _sorted_items(digest.items)
+    show_group = _show_group(items, meta)
     if not items:
         L += ["## 今天没有需要处理的信息", ""]
     else:
@@ -41,7 +47,10 @@ def to_markdown(day: str, digest: Digest, meta: dict) -> str:
     for n, it in enumerate(items, 1):
         head = f"### {n}. {BADGE.get(it.importance, '')} {it.title}"
         L += [head, ""]
-        tags = [f"`{it.category}`", f"重要度 **{it.importance}**"]
+        tags = []
+        if show_group and it.group:
+            tags.append(f"**【{it.group}】**")
+        tags += [f"`{it.category}`", f"重要度 **{it.importance}**"]
         if it.deadline:
             tags.append(f"截止 **{it.deadline}**")
         L += ["　".join(tags), "", it.summary, ""]
@@ -83,6 +92,7 @@ def to_html(day: str, digest: Digest, meta: dict) -> str:
         day_label=_day_label(day),
         digest=digest,
         items=_sorted_items(digest.items),
+        show_group=_show_group(digest.items, meta),
         meta=meta,
         badge=BADGE,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -90,15 +100,15 @@ def to_html(day: str, digest: Digest, meta: dict) -> str:
 
 
 def write_reports(out_dir: Path, day: str, digest: Digest, meta: dict,
-                  formats: list[str]) -> list[Path]:
+                  formats: list[str], slug: str = "") -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     if "markdown" in formats:
-        p = out_dir / f"{day}.md"
+        p = out_dir / f"{day}{slug}.md"
         p.write_text(to_markdown(day, digest, meta), "utf-8")
         written.append(p)
     if "html" in formats:
-        p = out_dir / f"{day}.html"
+        p = out_dir / f"{day}{slug}.html"
         p.write_text(to_html(day, digest, meta), "utf-8")
         written.append(p)
     return written
@@ -109,8 +119,11 @@ def to_qq_text(day: str, digest: Digest) -> str:
     L = [f"📋 班级群日报 {_day_label(day)}", digest.headline, ""]
     if digest.urgent:
         L += ["⏰ 马上要做："] + [f"· {u}" for u in digest.urgent] + [""]
-    for n, it in enumerate(_sorted_items(digest.items), 1):
-        line = f"{n}. {BADGE.get(it.importance, '')}{it.title}"
+    items = _sorted_items(digest.items)
+    show_group = _show_group(items, {})
+    for n, it in enumerate(items, 1):
+        pre = f"【{it.group}】" if show_group and it.group else ""
+        line = f"{n}. {BADGE.get(it.importance, '')}{pre}{it.title}"
         if it.deadline:
             line += f"（截止 {it.deadline}）"
         L.append(line)

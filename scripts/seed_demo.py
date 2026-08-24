@@ -12,7 +12,7 @@ from qq_agent.message import extract_urls, normalize_segments, segments_to_text 
 
 cfg = Config.load(sys.argv[1] if len(sys.argv) > 1 else "config.demo.toml")
 store = Store(cfg.resolve(cfg.storage.db_path))
-gid = cfg.group.group_ids[0]
+gids = cfg.group.group_ids
 now = int(time.time())
 
 DEMO = [
@@ -25,14 +25,20 @@ DEMO = [
     (9005, 10002, "李老师", "admin", "下周三的家长会改成线上，腾讯会议链接当天发群里。"),
 ]
 
-for i, (mid, uid, name, role, text) in enumerate(DEMO):
+DEMO2 = [
+    (9101, 10077, "陈老师", "owner", "英语班的同学，下周三小测范围是 Unit 1-3，记得复习。"),
+    (9102, 10077, "陈老师", "owner", "另外这周的听力作业交到班级邮箱，周日截止。"),
+]
+
+for i, (mid, uid, name, role, text) in enumerate(DEMO + DEMO2):
+    gid = gids[0] if i < len(DEMO) else gids[min(1, len(gids) - 1)]
     segs = normalize_segments(text)
     store.save_message({
         "message_id": mid, "group_id": gid, "user_id": uid,
         "sender_name": name, "sender_role": role,
         "is_teacher": role in ("owner", "admin"),
-        "ts": now - (len(DEMO) - i) * 600,
+        "ts": now - (len(DEMO) + len(DEMO2) - i) * 600,
         "text": segments_to_text(segs), "raw": segs, "urls": extract_urls(segs),
     })
-print(f"已写入 {len(DEMO)} 条演示消息到群 {gid}：", store.stats())
+print(f"已写入 {len(DEMO) + len(DEMO2)} 条演示消息到 {len(gids)} 个群：", store.stats())
 store.close()

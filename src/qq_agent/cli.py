@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import logging
 import sys
 from datetime import date, datetime
@@ -73,8 +74,19 @@ async def cmd_run(cfg: Config, store: Store, _a) -> int:
 async def cmd_report(cfg: Config, store: Store, a) -> int:
     if a.provider:
         cfg.summary.provider = a.provider
+    if a.group:
+        want = str(a.group)
+        hit = [g for g in cfg.group.group_ids
+               if str(g) == want or cfg.group.name_of(g) == want]
+        if not hit:
+            known = "、".join(f"{g}（{cfg.group.name_of(g)}）" for g in cfg.group.group_ids)
+            console.print(f"[red]没有这个群：{want}[/]  已配置的是：{known}")
+            return 1
+        cfg.group.group_ids = hit
+        a._slug = "-" + re.sub(r"[^\w\u4e00-\u9fff-]+", "", cfg.group.name_of(hit[0]))
     digest, meta, files = await generate(
-        cfg, store, day=_parse_day(a.date), use_cache=not a.no_cache, dry_run=a.dry_run
+        cfg, store, day=_parse_day(a.date), use_cache=not a.no_cache,
+        dry_run=a.dry_run, slug=getattr(a, "_slug", ""),
     )
     if not files:
         return 1
@@ -148,6 +160,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--dry-run", action="store_true", help="只导出送给模型的内容，不调 API")
     r.add_argument("--provider", choices=["deepseek", "codex"],
                    help="临时换一个摘要后端，不改 config.toml")
+    r.add_argument("-g", "--group",
+                   help="只出某一个群的日报，填群号或 [group].names 里的名字")
 
     b = sub.add_parser("backfill", help="从协议端补抓历史消息")
     b.add_argument("-n", "--count", type=int, default=200, help="每个群最多补抓多少条")

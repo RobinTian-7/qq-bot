@@ -34,6 +34,7 @@ class DigestItem(BaseModel):
     actions: list[str] = Field(description="用户需要做的事，祈使句；不需要做事就空数组")
     source_message_ids: list[int] = Field(description="依据的消息编号")
     source_urls: list[str] = Field(description="相关原始链接，逐字复制输入里的 URL")
+    group: str = Field(description="这条事项来自哪个群，逐字复制输入里的群名")
 
 
 class Digest(BaseModel):
@@ -75,6 +76,7 @@ EXAMPLE = {
         "actions": ["8 月 25 日早上不要吃早饭"],
         "source_message_ids": [9001, 9002],
         "source_urls": ["https://example.edu.cn/notice/2026/0824.html"],
+        "group": "三年二班",
     }],
     "notes": "有 1 个链接指向百度网盘，没能抓取，建议手动点开。",
 }
@@ -104,6 +106,9 @@ SYSTEM = """你是一个班级群信息整理助手。用户是{audience}。
    在 summary 末尾加一句"（原文较长，建议点开链接确认完整内容）"。
 8. 用简体中文。summary 控制在 2–4 句，key_points 每条一行、别超过 40 字。
 
+9. 每条消息开头的【】里是群名。group 字段填该条目所属的群名，逐字照抄。
+   不同群的事情不要合并成一个条目，哪怕内容看起来相似——不同班级的通知细节往往不一样。
+
 排序：items 按 importance 高→中→低，同级按 deadline 由近到远。"""
 
 JSON_RULES = """
@@ -118,13 +123,16 @@ JSON_RULES = """
 {example}"""
 
 
-def _fmt_messages(msgs: list[dict[str, Any]]) -> str:
+def _fmt_messages(msgs: list[dict[str, Any]], names: dict[int, str] | None = None) -> str:
+    names = names or {}
     out: list[str] = []
     for m in msgs:
         t = datetime.fromtimestamp(m["ts"]).strftime("%H:%M")
         role = {"owner": "群主", "admin": "管理员"}.get(m["sender_role"], "")
         who = f"{m['sender_name']}（{role}）" if role else m["sender_name"]
-        block = [f"#{m['message_id']} | {t} | {who}", m["text"] or "（无文字内容）"]
+        gname = names.get(m["group_id"], "")
+        head = f"#{m['message_id']} | {t} | 【{gname}】{who}" if gname else f"#{m['message_id']} | {t} | {who}"
+        block = [head, m["text"] or "（无文字内容）"]
         if m["urls"]:
             block.append("链接：" + "  ".join(m["urls"]))
         out.append("\n".join(block))
@@ -185,6 +193,7 @@ class BaseSummarizer:
 
     def __init__(self, cfg: Config):
         self.cfg = cfg
+        self._names = {gid: cfg.group.name_of(gid) for gid in cfg.group.group_ids}
 
     def system_prompt(self, with_json_rules: bool) -> str:
         s = SYSTEM.format(audience=self.cfg.summary.audience)
@@ -203,7 +212,7 @@ class BaseSummarizer:
         parts = [
             f"今天日期：{day}（星期{wd}）",
             f"\n\n========== 群消息（共 {len(msgs)} 条）==========\n\n",
-            _fmt_messages(msgs) or "（今天没有消息）",
+            _fmt_messages(msgs, self._names) or "（今天没有消息）",
         ]
         if page_text:
             parts.append(f"\n\n========== 链接网页正文 ==========\n\n{page_text}")
@@ -219,6 +228,7 @@ class BaseSummarizer:
             )
         meta = {
             "provider": self.name,
+            "multi_group": self.cfg.group.multi,
             "n_messages": len(msgs),
             "n_pages_ok": sum(1 for p in pages if p.ok),
             "n_pages_failed": len(failures),

@@ -18,9 +18,18 @@ class OneBotCfg:
 @dataclass
 class GroupCfg:
     group_ids: list[int] = field(default_factory=list)
+    # 群号 → 看得懂的名字。TOML 的键必须是字符串："123456789" = "三年二班"
+    names: dict[str, str] = field(default_factory=dict)
     teacher_qqs: list[int] = field(default_factory=list)
     include_admins: bool = True
     teacher_name_keywords: list[str] = field(default_factory=list)
+
+    def name_of(self, gid: int) -> str:
+        return self.names.get(str(gid)) or f"群{gid}"
+
+    @property
+    def multi(self) -> bool:
+        return len(self.group_ids) > 1
 
     @property
     def filters_teachers(self) -> bool:
